@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response } from "express";
 
 interface ErrorWithMessage extends Error {
   message: string;
@@ -21,14 +21,16 @@ export const errorResponse = (
   res: Response,
   statusCode: number,
   message: string | object,
-  error: ErrorWithMessage | null = null
+  error: ErrorWithMessage | string | null = null
 ): void => {
+  const errMsg =
+    typeof error === "string" ? error : error ? error.message : null;
+
   res.status(statusCode).json({
     success: false,
     message,
-    error: error ? error.message : null,
+    error: errMsg,
   });
 };
 
-// Optional: If you need CommonJS compatibility
 export default { successResponse, errorResponse };
