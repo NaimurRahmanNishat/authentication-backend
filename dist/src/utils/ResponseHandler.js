@@ -10,12 +10,12 @@ const successResponse = (res, statusCode, message, data = {}) => {
 };
 exports.successResponse = successResponse;
 const errorResponse = (res, statusCode, message, error = null) => {
+    const errMsg = typeof error === "string" ? error : error ? error.message : null;
     res.status(statusCode).json({
         success: false,
         message,
-        error: error ? error.message : null,
+        error: errMsg,
     });
 };
 exports.errorResponse = errorResponse;
-// Optional: If you need CommonJS compatibility
 exports.default = { successResponse: exports.successResponse, errorResponse: exports.errorResponse };

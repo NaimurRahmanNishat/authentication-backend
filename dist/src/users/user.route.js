@@ -6,4 +6,6 @@ const router = (0, express_1.Router)();
 router.post("/register", user_controller_1.userRegister);
 router.post("/login", user_controller_1.userLogin);
 router.post("/verify-otp", user_controller_1.verifyOtp);
+router.post("/forgot-password", user_controller_1.forgotPassword);
+router.post("/reset-password", user_controller_1.resetPassword);
 exports.default = router;
