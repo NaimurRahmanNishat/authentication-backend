@@ -67,6 +67,7 @@ const userLogin = async (req, res) => {
         // Send OTP via email
         await (0, sendEmail_1.default)(user.email, "Your OTP Code", `Your OTP code is: ${otpCode}`);
         return (0, ResponseHandler_1.successResponse)(res, 200, "OTP sent to email. Please verify.", {
+            requiresOtp: true,
             email: user.email,
         });
     }
