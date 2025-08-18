@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPassword = exports.forgotPassword = exports.verifyOtp = exports.userLogin = exports.userRegister = void 0;
+exports.userLogout = exports.resetPassword = exports.forgotPassword = exports.verifyOtp = exports.userLogin = exports.userRegister = void 0;
 const user_model_1 = __importDefault(require("./user.model"));
 const ResponseHandler_1 = require("../utils/ResponseHandler");
 const sendEmail_1 = __importDefault(require("../utils/sendEmail"));
@@ -162,3 +162,18 @@ const resetPassword = async (req, res) => {
     }
 };
 exports.resetPassword = resetPassword;
+const userLogout = async (req, res) => {
+    try {
+        res.clearCookie("token", {
+            httpOnly: true,
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production",
+        });
+        (0, ResponseHandler_1.successResponse)(res, 200, "Logout successful!");
+    }
+    catch (error) {
+        console.error("Logout error:", error);
+        (0, ResponseHandler_1.errorResponse)(res, 500, "Logout failed!");
+    }
+};
+exports.userLogout = userLogout;

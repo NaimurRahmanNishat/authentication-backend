@@ -8,4 +8,5 @@ router.post("/login", user_controller_1.userLogin);
 router.post("/verify-otp", user_controller_1.verifyOtp);
 router.post("/forgot-password", user_controller_1.forgotPassword);
 router.post("/reset-password", user_controller_1.resetPassword);
+router.post("/logout", user_controller_1.userLogout);
 exports.default = router;
