@@ -16,7 +16,7 @@ const body_parser_1 = __importDefault(require("body-parser"));
 app.use(express_1.default.json({ limit: "20mb" }));
 app.use(express_1.default.urlencoded({ extended: true, limit: "20mb" }));
 app.use((0, cors_1.default)({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "https://authentication-frontend-gold.vercel.app"],
     credentials: true
 }));
 app.use((0, cookie_parser_1.default)());

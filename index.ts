@@ -12,7 +12,7 @@ import bodyParser from "body-parser";
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: ["http://localhost:5173","https://authentication-frontend-gold.vercel.app"],
   credentials: true
 }));
 app.use(cookieParser());
