@@ -184,4 +184,18 @@ const resetPassword = async (req: Request, res: Response) => {
   }
 };
 
-export { userRegister, userLogin, verifyOtp, forgotPassword, resetPassword };
+const userLogout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      sameSite: "lax", 
+      secure: process.env.NODE_ENV === "production", 
+    });
+    successResponse(res, 200, "Logout successful!");
+  } catch (error) {
+    console.error("Logout error:", error);
+    errorResponse(res, 500, "Logout failed!");
+  }
+}
+
+export { userRegister, userLogin, verifyOtp, forgotPassword, resetPassword, userLogout };
