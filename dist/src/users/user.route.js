@@ -4,6 +4,7 @@ const express_1 = require("express");
 const user_controller_1 = require("./user.controller");
 const router = (0, express_1.Router)();
 router.post("/register", user_controller_1.userRegister);
+router.post("/verify-register-otp", user_controller_1.verifyRegisterOtp);
 router.post("/login", user_controller_1.userLogin);
 router.post("/verify-otp", user_controller_1.verifyOtp);
 router.post("/forgot-password", user_controller_1.forgotPassword);

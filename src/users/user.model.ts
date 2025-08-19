@@ -9,6 +9,7 @@ export interface IUser extends Document {
   password?: string;
   otpCode?: string;
   otpExpire?: Date;
+  isVerified?: boolean;
   passwordResetToken?: string;
   passwordResetExpire?: Date;
   passwordChangedAt?: Date;
@@ -46,6 +47,7 @@ const userSchema = new Schema<IUser>(
     },
     otpCode: { type: String, select: false },
     otpExpire: { type: Date, select: false },
+    isVerified: { type: Boolean, default: false },
     passwordResetToken: { type: String, select: false },
     passwordResetExpire: { type: Date, select: false },
     passwordChangedAt: { type: Date, select: false },

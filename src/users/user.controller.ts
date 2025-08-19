@@ -6,7 +6,8 @@ import generateToken from "../middleware/generateToken";
 import { Types } from "mongoose";
 const isEmail = (v: string) => /^\S+@\S+\.\S+$/.test(v);
 
-// Register
+
+// Register with OTP
 const userRegister = async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body as {
@@ -21,22 +22,37 @@ const userRegister = async (req: Request, res: Response) => {
     if (username.length < 3 || username.length > 20) {
       return errorResponse(res, 400, "Username must be between 3 to 20 characters");
     }
-    if (!isEmail(email)) {
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
       return errorResponse(res, 400, "Invalid email format");
     }
     if (password.length < 6) {
       return errorResponse(res, 400, "Password must be at least 6 characters");
     }
 
+    // Create user with OTP (not active yet)
     try {
-      const newUser = await User.create({ username, email, password });
-      return successResponse(res, 201, "User registered successfully", {
-        id: newUser._id,
-        username: newUser.username,
+      const newUser = await User.create({
+        username,
+        email,
+        password,
+        isVerified: false, // <-- ✅ new field
+      });
+
+      // Generate OTP
+      const otpCode = newUser.createOtpCode();
+      await newUser.save({ validateBeforeSave: false });
+
+      // Send OTP mail
+      await sendEmail(
+        newUser.email,
+        "Account Verification OTP",
+        `Hello ${newUser.username}, your OTP for registration is ${otpCode}. This will expire in 10 minutes.`
+      );
+
+      return successResponse(res, 201, "OTP sent to email. Please verify to complete registration.", {
         email: newUser.email,
       });
     } catch (e: any) {
-      // duplicate key
       if (e?.code === 11000) {
         const field = Object.keys(e.keyPattern || {})[0] || "field";
         return errorResponse(res, 400, `User with this ${field} already exists`);
@@ -45,6 +61,39 @@ const userRegister = async (req: Request, res: Response) => {
     }
   } catch (error: any) {
     return errorResponse(res, 500, "Internal Server Error", error);
+  }
+};
+
+// Verify Registration OTP
+const verifyRegisterOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, otpCode } = req.body as { email?: string; otpCode?: string };
+    if (!email || !otpCode) {
+      return errorResponse(res, 400, "Email and OTP are required");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
+      "+otpCode +otpExpire +isVerified"
+    );
+    if (!user) return errorResponse(res, 404, "User not found");
+
+    // OTP check
+    const isValidOtp = user.verifyOtpCode(otpCode);
+    if (!isValidOtp) return errorResponse(res, 400, "Invalid or expired OTP");
+
+    // ✅ Activate user
+    user.isVerified = true;
+    user.otpCode = undefined;
+    user.otpExpire = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return successResponse(res, 200, "Account verified successfully! You can now login.", {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+    });
+  } catch (error: any) {
+    return errorResponse(res, 500, error?.message || "Something went wrong", error);
   }
 };
 
@@ -185,6 +234,7 @@ const resetPassword = async (req: Request, res: Response) => {
   }
 };
 
+// Logout
 const userLogout = async (req: Request, res: Response): Promise<void> => {
   try {
     res.clearCookie("token", {
@@ -199,4 +249,4 @@ const userLogout = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
-export { userRegister, userLogin, verifyOtp, forgotPassword, resetPassword, userLogout };
+export { userRegister, verifyRegisterOtp, userLogin, verifyOtp, forgotPassword, resetPassword, userLogout };

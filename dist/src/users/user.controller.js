@@ -3,13 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.userLogout = exports.resetPassword = exports.forgotPassword = exports.verifyOtp = exports.userLogin = exports.userRegister = void 0;
+exports.userLogout = exports.resetPassword = exports.forgotPassword = exports.verifyOtp = exports.userLogin = exports.verifyRegisterOtp = exports.userRegister = void 0;
 const user_model_1 = __importDefault(require("./user.model"));
 const ResponseHandler_1 = require("../utils/ResponseHandler");
 const sendEmail_1 = __importDefault(require("../utils/sendEmail"));
 const generateToken_1 = __importDefault(require("../middleware/generateToken"));
 const isEmail = (v) => /^\S+@\S+\.\S+$/.test(v);
-// Register
+// Register with OTP
 const userRegister = async (req, res) => {
     try {
         const { username, email, password } = req.body;
@@ -19,22 +19,30 @@ const userRegister = async (req, res) => {
         if (username.length < 3 || username.length > 20) {
             return (0, ResponseHandler_1.errorResponse)(res, 400, "Username must be between 3 to 20 characters");
         }
-        if (!isEmail(email)) {
+        if (!/^\S+@\S+\.\S+$/.test(email)) {
             return (0, ResponseHandler_1.errorResponse)(res, 400, "Invalid email format");
         }
         if (password.length < 6) {
             return (0, ResponseHandler_1.errorResponse)(res, 400, "Password must be at least 6 characters");
         }
+        // Create user with OTP (not active yet)
         try {
-            const newUser = await user_model_1.default.create({ username, email, password });
-            return (0, ResponseHandler_1.successResponse)(res, 201, "User registered successfully", {
-                id: newUser._id,
-                username: newUser.username,
+            const newUser = await user_model_1.default.create({
+                username,
+                email,
+                password,
+                isVerified: false, // <-- ✅ new field
+            });
+            // Generate OTP
+            const otpCode = newUser.createOtpCode();
+            await newUser.save({ validateBeforeSave: false });
+            // Send OTP mail
+            await (0, sendEmail_1.default)(newUser.email, "Account Verification OTP", `Hello ${newUser.username}, your OTP for registration is ${otpCode}. This will expire in 10 minutes.`);
+            return (0, ResponseHandler_1.successResponse)(res, 201, "OTP sent to email. Please verify to complete registration.", {
                 email: newUser.email,
             });
         }
         catch (e) {
-            // duplicate key
             if (e?.code === 11000) {
                 const field = Object.keys(e.keyPattern || {})[0] || "field";
                 return (0, ResponseHandler_1.errorResponse)(res, 400, `User with this ${field} already exists`);
@@ -47,6 +55,36 @@ const userRegister = async (req, res) => {
     }
 };
 exports.userRegister = userRegister;
+// Verify Registration OTP
+const verifyRegisterOtp = async (req, res) => {
+    try {
+        const { email, otpCode } = req.body;
+        if (!email || !otpCode) {
+            return (0, ResponseHandler_1.errorResponse)(res, 400, "Email and OTP are required");
+        }
+        const user = await user_model_1.default.findOne({ email: email.toLowerCase().trim() }).select("+otpCode +otpExpire +isVerified");
+        if (!user)
+            return (0, ResponseHandler_1.errorResponse)(res, 404, "User not found");
+        // OTP check
+        const isValidOtp = user.verifyOtpCode(otpCode);
+        if (!isValidOtp)
+            return (0, ResponseHandler_1.errorResponse)(res, 400, "Invalid or expired OTP");
+        // ✅ Activate user
+        user.isVerified = true;
+        user.otpCode = undefined;
+        user.otpExpire = undefined;
+        await user.save({ validateBeforeSave: false });
+        return (0, ResponseHandler_1.successResponse)(res, 200, "Account verified successfully! You can now login.", {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+        });
+    }
+    catch (error) {
+        return (0, ResponseHandler_1.errorResponse)(res, 500, error?.message || "Something went wrong", error);
+    }
+};
+exports.verifyRegisterOtp = verifyRegisterOtp;
 // Login (Step 1: check password, send OTP)
 const userLogin = async (req, res) => {
     try {
@@ -163,6 +201,7 @@ const resetPassword = async (req, res) => {
     }
 };
 exports.resetPassword = resetPassword;
+// Logout
 const userLogout = async (req, res) => {
     try {
         res.clearCookie("token", {
