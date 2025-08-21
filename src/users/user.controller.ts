@@ -172,6 +172,52 @@ const verifyOtp = async (req: Request, res: Response) => {
   }
 };
 
+//  resend login otp 
+const resendLoginOtp = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body as { email?: string };
+
+    if (!email) {
+      return errorResponse(res, 400, "Email is required");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
+      "+otpCode +otpExpire +otpRequestedAt"
+    );
+
+    if (!user) return errorResponse(res, 404, "User not found");
+
+    const now = new Date();
+    const cooldownTime = 60 * 1000; // 1 minute cooldown
+    if (user.otpRequestedAt && now.getTime() - user.otpRequestedAt.getTime() < cooldownTime) {
+      const waitSeconds = Math.ceil(
+        (cooldownTime - (now.getTime() - user.otpRequestedAt.getTime())) / 1000
+      );
+      return errorResponse(
+        res,
+        429,
+        `Please wait ${waitSeconds} seconds before requesting a new OTP`
+      );
+    }
+
+    const otpCode = user.createOtpCode();
+    user.otpRequestedAt = now;
+    await user.save({ validateBeforeSave: false });
+
+    await sendEmail(
+      user.email,
+      "Your New OTP Code",
+      `Hello ${user.username}, your new OTP is ${otpCode}. This OTP will expire in 10 minutes.`
+    );
+
+    return successResponse(res, 200, "A new OTP has been sent to your email", {
+      email: user.email,
+    });
+  } catch (error: any) {
+    return errorResponse(res, 500, error?.message || "Failed to resend OTP!", error);
+  }
+};
+
 // Forgot password (send OTP)
 const forgotPassword = async (req: Request, res: Response) => {
   try {
@@ -249,4 +295,4 @@ const userLogout = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
-export { userRegister, verifyRegisterOtp, userLogin, verifyOtp, forgotPassword, resetPassword, userLogout };
+export { userRegister, verifyRegisterOtp, userLogin, verifyOtp, resendLoginOtp, forgotPassword, resetPassword, userLogout }; 

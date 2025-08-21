@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.userLogout = exports.resetPassword = exports.forgotPassword = exports.verifyOtp = exports.userLogin = exports.verifyRegisterOtp = exports.userRegister = void 0;
+exports.userLogout = exports.resetPassword = exports.forgotPassword = exports.resendLoginOtp = exports.verifyOtp = exports.userLogin = exports.verifyRegisterOtp = exports.userRegister = void 0;
 const user_model_1 = __importDefault(require("./user.model"));
 const ResponseHandler_1 = require("../utils/ResponseHandler");
 const sendEmail_1 = __importDefault(require("../utils/sendEmail"));
@@ -152,6 +152,35 @@ const verifyOtp = async (req, res) => {
     }
 };
 exports.verifyOtp = verifyOtp;
+//  resend login otp 
+const resendLoginOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return (0, ResponseHandler_1.errorResponse)(res, 400, "Email is required");
+        }
+        const user = await user_model_1.default.findOne({ email: email.toLowerCase().trim() }).select("+otpCode +otpExpire +otpRequestedAt");
+        if (!user)
+            return (0, ResponseHandler_1.errorResponse)(res, 404, "User not found");
+        const now = new Date();
+        const cooldownTime = 60 * 1000; // 1 minute cooldown
+        if (user.otpRequestedAt && now.getTime() - user.otpRequestedAt.getTime() < cooldownTime) {
+            const waitSeconds = Math.ceil((cooldownTime - (now.getTime() - user.otpRequestedAt.getTime())) / 1000);
+            return (0, ResponseHandler_1.errorResponse)(res, 429, `Please wait ${waitSeconds} seconds before requesting a new OTP`);
+        }
+        const otpCode = user.createOtpCode();
+        user.otpRequestedAt = now;
+        await user.save({ validateBeforeSave: false });
+        await (0, sendEmail_1.default)(user.email, "Your New OTP Code", `Hello ${user.username}, your new OTP is ${otpCode}. This OTP will expire in 10 minutes.`);
+        return (0, ResponseHandler_1.successResponse)(res, 200, "A new OTP has been sent to your email", {
+            email: user.email,
+        });
+    }
+    catch (error) {
+        return (0, ResponseHandler_1.errorResponse)(res, 500, error?.message || "Failed to resend OTP!", error);
+    }
+};
+exports.resendLoginOtp = resendLoginOtp;
 // Forgot password (send OTP)
 const forgotPassword = async (req, res) => {
     try {
