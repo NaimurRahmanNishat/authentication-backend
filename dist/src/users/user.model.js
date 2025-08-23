@@ -94,26 +94,19 @@ const userSchema = new mongoose_1.Schema({
         },
     },
 });
-// Unique indexes (helps ensure at DB level too)
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ username: 1 }, { unique: true });
 // Hash password before save when modified
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password"))
         return next();
-    const SALT_ROUNDS = 12;
     // @ts-ignore
-    this.password = await bcrypt_1.default.hash(this.password, SALT_ROUNDS);
-    // Set passwordChangedAt just before issuing token
-    // Subtract 1s to avoid token issued before this timestamp
+    this.password = await bcrypt_1.default.hash(this.password, 12);
     // @ts-ignore
     this.passwordChangedAt = new Date(Date.now() - 1000);
     next();
 });
 // Compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
-    // password is selected with +password in queries
-    return bcrypt_1.default.compare(candidatePassword, this.password);
+    return bcrypt_1.default.compare(candidatePassword, this.password); // password is selected with +password in queries
 };
 // Create OTP (6 digits, 10 mins)
 userSchema.methods.createOtpCode = function () {
